@@ -204,12 +204,30 @@ module Beefcake
       @n = n
     end
 
-    def service!(pkg, mt)
-      puts "class #{mt.name}"
+    def method!(pkg, st, mt)
+      puts "def #{underscore(mt.name)}(request)"
 
       indent do
-        puts "include Beefcake::Service"
-        puts
+        if mt.output_type
+          output_klass = mt.output_type.split('.').last
+          puts %(send_request("#{st.name}.#{mt.name}", request, :returns => #{output_klass}))
+        else
+          puts %(send_request("#{st.name}.#{mt.name}", request))
+        end
+      end
+
+      puts "end"
+    end
+
+    def service!(pkg, st)
+      puts
+      puts "class #{camelize(st.name).gsub(/service$/i, '')}Client < Beefcake::Client"
+
+      indent do
+        # Now define methods for each, too.
+        Array(st.method).each do |mt|
+          method!(pkg, st, mt)
+        end
       end
 
       puts "end"
@@ -325,16 +343,7 @@ module Beefcake
           message!(file.package, mt)
         end
 
-        Array(file.enum_type).each do |et|
-          enum!(et)
-        end
-        puts
-
-        Array(file.message_type).each do |mt|
-          message!(file.package, mt)
-        end
-
-        file.service_type.each do |mt|
+        Array(file.service_type).each do |mt|
           service!("", mt)
         end
       end
@@ -360,5 +369,31 @@ module Beefcake
       end
     end
 
+    # NOTE: This is hopelessly ripped off from ActiveSupport.
+    #
+    # @param [String] camel_cased_word the word to underscoreize
+    # @return the underscored word.
+    #
+    def underscore(camel_cased_word)
+      word = camel_cased_word.to_s.dup
+      word.gsub!(/::/, '/')
+      #word.gsub!(/(?:([A-Za-z\d])|^)(#{inflections.acronym_regex})(?=\b|[^a-z])/) { "#{$1}#{$1 && '_'}#{$2.downcase}" }
+      word.gsub!(/([A-Z\d]+)([A-Z][a-z])/,'\1_\2')
+      word.gsub!(/([a-z\d])([A-Z])/,'\1_\2')
+      word.tr!("-", "_")
+      word.downcase!
+      word
+    end
+
+    # Bastardized version of ActiveSupport's inflector
+    #
+    # @param [String] term the string to camelize.
+    # @return [String] the camelized word.
+    #
+    def camelize(term)
+      string = term.to_s
+      string = string.sub(/^[a-z\d]*/) { $&.capitalize }
+      string.gsub(/(?:_|(\/))([a-z\d]*)/) { "#{$1}#{$2.capitalize}" }.gsub('/', '::')
+    end
   end
 end

@@ -1,3 +1,4 @@
+require 'socket'
 require 'beefcake/buffer'
 
 module Beefcake
@@ -162,7 +163,7 @@ module Beefcake
         while buf.length > 0
           fn, wire = buf.read_info
 
-          fld = fields[fn]
+          fld = _fields[fn]
 
           # We don't have a field for with index fn.
           # Ignore this data and move on.
@@ -193,7 +194,7 @@ module Beefcake
         end
 
         # Set defaults
-        fields.values.each do |f|
+        _fields.values.each do |f|
           next if o[f.name] == false
           o[f.name] ||= f.opts[:default]
         end
@@ -280,4 +281,95 @@ module Beefcake
 
   end
 
+  class RPCMessage
+    include Beefcake::Message
+
+    optional :service_method, :string, 1
+    optional :seq,            :uint64, 2
+    optional :error,          :string, 3
+  end
+
+  class Client
+    attr_reader :host, :port
+
+    def initialize(host, port)
+      @host, @port = [host.to_s, port.to_i]
+    end
+
+    protected
+
+    def send_request(service_method, obj, opts={})
+      header = RPCMessage.new(service_method: service_method, seq: 0)
+      write_all(header)
+      write_all(obj)
+
+      return_klass = opts[:returns] || opts['returns']
+      read_all(return_klass)
+    end
+
+    private
+
+    def write_all(message)
+      str = encoded(message)
+
+      buf = Buffer.new
+      buf.append_uint64(str.length)
+      buf << str
+
+      socket.write(buf)
+      socket.flush
+    end
+
+    def read_all(klass)
+      # TODO: Anything with this message?
+      read_obj(RPCMessage)
+      read_obj(klass)
+    end
+
+    def read_obj(klass)
+      msg = socket.read(read_obj_size)
+      klass.decode(msg)
+    end
+
+    def read_obj_size
+      buf = Buffer.new
+      read_uvarint(buf)
+      size = buf.read_uint64
+    end
+
+    def read_uvarint(buf)
+      b = socket.recv(1).ord
+      buf << b
+      read_uvarint(buf) if (b >> 7) & 0x01 == 0x01
+    end
+
+    def encoded(obj)
+      ''.tap { |s| obj.encode(s) }
+    end
+
+    def socket
+      @socket ||= open_socket!
+    end
+
+    def open_socket!(timeout=5)
+      addr = Socket.getaddrinfo(host, nil)
+      sock = Socket.new(Socket.const_get(addr[0][0]), Socket::SOCK_STREAM, 0)
+
+      # If a timeout was requested, let's configure one.
+      if timeout
+        secs = timeout.to_i
+        usecs = Integer((timeout - secs) * 1_000_000)
+        optval = [secs, usecs].pack("l_2")
+        begin
+          sock.setsockopt Socket::SOL_SOCKET, Socket::SO_RCVTIMEO, optval
+          sock.setsockopt Socket::SOL_SOCKET, Socket::SO_SNDTIMEO, optval
+        rescue Exception => ex
+          warn "Unable to use raw socket timeouts: #{ex.class.name}: #{ex.message}"
+        end
+      end
+
+      sock.connect(Socket.pack_sockaddr_in(port, addr[0][3]))
+      sock
+    end
+  end
 end
