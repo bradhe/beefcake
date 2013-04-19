@@ -1,3 +1,12 @@
 *.gem
 Gemfile.lock
 bench/beefcake.prof.*
+
+# Ignore Vim droppings
+*.sw[op]
+
+# Ignore Gemfile.lock
+/Gemfile.lock
+
+# Ignore .rvmrc, unless that's something we want to keep of course.
+/.rvmrc

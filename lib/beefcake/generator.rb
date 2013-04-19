@@ -91,17 +91,37 @@ class CodeGeneratorRequest
     # optional :options, EnumOptions, 3
   end
 
+  class MethodDescriptorProto
+    include Beefcake::Message
+
+    optional :name, :string, 1
+
+    # NOTE: We keep these so we can document the expected behavior.
+    optional :input_type, :string, 2
+    optional :output_type, :string, 3
+    #optional :method_options, MethodOptions, 4
+  end
+
+  class ServiceDescriptorProto
+    include Beefcake::Message
+
+    optional :name, :string, 1
+
+    repeated :method, MethodDescriptorProto, 2
+    #optional :options, ServiceOptions, 3
+  end
+
   class DescriptorProto
     include Beefcake::Message
 
     optional :name, :string, 1
 
-    repeated :field,       FieldDescriptorProto, 2
-    repeated :extended,    FieldDescriptorProto, 6
-    repeated :nested_type, DescriptorProto,      3
-    repeated :enum_type,   EnumDescriptorProto,  4
+    repeated :field,        FieldDescriptorProto,   2
+    repeated :extended,     FieldDescriptorProto,   6
+    repeated :nested_type,  DescriptorProto,        3
+    repeated :enum_type,    EnumDescriptorProto,    4
+    repeated :service_type, ServiceDescriptorProto, 6
   end
-
 
   class FileDescriptorProto
     include Beefcake::Message
@@ -162,6 +182,18 @@ module Beefcake
       @n = 0
     end
 
+    def file!(file)
+      puts "## Generated from #{file.name} for #{file.package}"
+
+      file.message_type.each do |mt|
+        message!("", mt)
+      end
+
+      file.service_type.each do |mt|
+        service!("", mt)
+      end
+    end
+
     def indent(&blk)
       @n += 1
       blk.call
@@ -172,7 +204,18 @@ module Beefcake
       @n = n
     end
 
-    def define!(mt)
+    def service!(pkg, mt)
+      puts "class #{mt.name}"
+
+      indent do
+        puts "include Beefcake::Service"
+        puts
+      end
+
+      puts "end"
+    end
+
+    def message!(pkg, mt)
       puts
       puts "class #{mt.name}"
 
@@ -289,6 +332,10 @@ module Beefcake
 
         Array(file.message_type).each do |mt|
           message!(file.package, mt)
+        end
+
+        file.service_type.each do |mt|
+          service!("", mt)
         end
       end
     end
