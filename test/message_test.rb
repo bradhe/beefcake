@@ -336,7 +336,7 @@ class MessageTest < Minitest::Test
 
   def test_decode_default
     got = EnumsDefaultMessage.decode("")
-    assert_equal EnumsDefaultMessage.fields[1].opts[:default], got.a
+    assert_equal EnumsDefaultMessage._fields[1].opts[:default], got.a
   end
 
   def test_decode_unset_required_fields

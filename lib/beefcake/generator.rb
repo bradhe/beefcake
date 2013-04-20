@@ -236,7 +236,7 @@ module Beefcake
 
     def message!(pkg, mt)
       puts
-      puts "class #{mt.name}"
+      puts "class #{camelize(mt.name)}"
 
       indent do
         puts "include Beefcake::Message"
@@ -274,8 +274,7 @@ module Beefcake
     end
 
     def enum!(et)
-      puts
-      puts "module #{et.name}"
+      puts "module #{camelize(et.name)}"
       indent do
         et.value.each do |v|
           puts "%s = %d" % [v.name, v.number]
