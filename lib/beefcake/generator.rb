@@ -131,6 +131,7 @@ class CodeGeneratorRequest
 
     repeated :message_type, DescriptorProto,     4
     repeated :enum_type,    EnumDescriptorProto, 5
+    repeated :service_type, ServiceDescriptorProto, 6
   end
 
 
