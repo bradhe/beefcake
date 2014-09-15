@@ -1,14 +1,18 @@
 PATH
   remote: .
   specs:
-    beefcake (0.3.8)
+    beefcake (1.0.0.pre2)
 
 GEM
-  remote: http://rubygems.org/
+  remote: https://rubygems.org/
   specs:
+    minitest (5.4.1)
+    rake (10.1.1)
 
 PLATFORMS
   ruby
 
 DEPENDENCIES
   beefcake!
+  minitest (~> 5.3)
+  rake (~> 10.1.0)
